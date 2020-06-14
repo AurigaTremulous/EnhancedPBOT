@@ -1,0 +1,71 @@
+The paths/atcs/path.dat goes into base/paths/atcs/
+Compiled QVM goes into base/vm/
+
+Version 2.8 changes:
+	Bug fixes:
+		Bots could get kicked.
+		Many others.
+	Upgraded /node command.
+	Added weapon/evolve cvar.
+	Added timeout and action to paths.
+	Humans back away from closer enemies.
+	Recalculated aiming.
+	Etc.
+Version 2.7 changes:
+
+	Bug fixes:
+		Conflicts with bot during connection.
+		Weapons werent bought/sold right.
+		Better aiming calculations.
+		Corpsenum error.
+	Bots can buy all weapons, armors, and battpack.
+	Goons pounce if enemy is far enough away.
+	Increased aiming speed
+	Added cvars to enable/disable bot and change bot view range for class
+
+Cvars to consider:
+
+g_pathediting 0		(enable/disable path node editing with /node command)
+g_bot 1			(enable/disable bots)
+g_human_strafe 0	(enable/disable strafing when shooting at a client.  I suggest leaving this off because bots may run into others fire or shoot teammates.)
+g_level0_range 1000	(Class find enemy range)
+g_level1_range 1100
+g_level1UPG_range 1200
+g_level2_range 1300
+g_level2UPG_range 1400
+g_level3_range 1500
+g_level3UPG_range 2000
+g_level4_range 300
+g_human_range 3000
+g_bot_evolve 1 (allow/deny evolving)
+g_bot_mgun 1(allow/deny weapons)
+g_bot_shotgun 1 
+g_bot_psaw 1
+g_bot_lasgun 1
+g_bot_mdriver 1
+g_bot_chaingun 1
+g_bot_prifle 1
+g_bot_flamer 1
+g_bot_lcannon 1
+
+
+Following from <http://tremulous.net/forum/index.php?topic=8864.0>
+g_ambush 1                (ambush mod 1 = on, 0 = off)
+g_ambush_granger_s1 20    (number of granger kills to stage 2.)
+g_ambush_dretch_s2 20     (number of dretch kills to stage 3.)
+g_ambush_basilisk_s3 20   (number of basilisk kills to stage 4.)
+g_ambush_basilisk2_s4 20  (number of adv basilisk kills to stage 5.)
+g_ambush_marauder_s5 20   (number of marauder kills to stage 6.)
+g_ambush_marauder2_s6 20  (number of adv marauder kills to stage 7.)
+g_ambush_dragon_s7 20     (number of dragon kills to stage 8.)
+g_ambush_dragon2_s8 20    (number of adv dragon kills to stage 9.)
+g_ambush_tyrants_to_win   (number of tyrant kills to "NO EGGS" message.)
+g_ambush_dodge 50         (how much aliens dodging left and right)
+g_ambush_dodge_random 10  (how big random number will be added to dodge)
+g_ambush_rebuild_time 60  (between waves can be pause for rebuild base, when aliens not attacking. In seconds.)
+g_ambush_sec_to_start 40  (warmup for aliens)
+g_ambush_stage_suicide 0  (when you got new stage, all remaining aliens immediately die. 1 = on (easy), 0 = off (hard).)
+g_ambush_no_egg_ffoff 1   (when your server using friendly fire, then will be turned off for aliens in last stage with no eggs. Otherwise rest of tyrants will kill each other and for humans remain only last one. After humans win, friendly fire wil be restored. If you play alone or only few players, I recommend set it to 0 and leave friendly fire on, because othervise tyrants probably kill you and without credits can't win or kill tyrant. 1 = on (hard), 0 = off (easy).)
+g_ambush_kill_spawns 0    (if you leave it to 0, then humans can't destroy eggs and they must finish game with tyrants together)
+g_ambush_att_buildables 0 (0 mean aliens attacking only players. 1 mean aliens attacking players and their buildables.)
+g_ambush_range 10000      (how far can aliens see. For example 300 is turret range)

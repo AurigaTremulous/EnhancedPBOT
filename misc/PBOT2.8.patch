@@ -1,0 +1,608 @@
+Index: src/tools/asm/Makefile
+===================================================================
+--- src/tools/asm/Makefile	(revision 966)
++++ src/tools/asm/Makefile	(working copy)
+@@ -13,7 +13,7 @@
+ endif
+ 
+ CC=gcc
+-Q3ASM_CFLAGS=-O2 -Wall -Werror -fno-strict-aliasing
++Q3ASM_CFLAGS=-O2 -Wall -fno-strict-aliasing
+ 
+ ifeq ($(PLATFORM),darwin)
+   LCC_CFLAGS += -DMACOS_X=1
+Index: src/server/sv_ccmds.c
+===================================================================
+--- src/server/sv_ccmds.c	(revision 966)
++++ src/server/sv_ccmds.c	(working copy)
+@@ -239,11 +239,6 @@
+ 	else {
+ 		delay = 5;
+ 	}
+-	if( delay && !Cvar_VariableValue("g_doWarmup") ) {
+-		sv.restartTime = sv.time + delay * 1000;
+-		SV_SetConfigstring( CS_WARMUP, va("%i", sv.restartTime) );
+-		return;
+-	}
+ 
+ 	// check for changes in variables that can't just be restarted
+ 	// check for maxclients change
+Index: src/server/server.h
+===================================================================
+--- src/server/server.h	(revision 966)
++++ src/server/server.h	(working copy)
+@@ -228,6 +228,8 @@
+ extern	cvar_t	*sv_rconPassword;
+ extern	cvar_t	*sv_privatePassword;
+ extern	cvar_t	*sv_allowDownload;
++extern	cvar_t	*sv_wwwDownload;
++extern	cvar_t	*sv_wwwBaseURL;
+ extern	cvar_t	*sv_maxclients;
+ 
+ extern	cvar_t	*sv_privateClients;
+Index: src/server/sv_init.c
+===================================================================
+--- src/server/sv_init.c	(revision 966)
++++ src/server/sv_init.c	(working copy)
+@@ -611,6 +611,10 @@
+ 
+ 	sv_allowDownload = Cvar_Get ("sv_allowDownload", "0", CVAR_SERVERINFO);
+ 	Cvar_Get ("sv_dlURL", "", CVAR_SERVERINFO | CVAR_ARCHIVE);
++	sv_wwwDownload = Cvar_Get ("sv_wwwDownload", "1",
++		CVAR_SYSTEMINFO|CVAR_ARCHIVE);
++	sv_wwwBaseURL = Cvar_Get ("sv_wwwBaseURL", "",
++		CVAR_SYSTEMINFO|CVAR_ARCHIVE);
+ 	sv_master[0] = Cvar_Get ("sv_master1", MASTER_SERVER_NAME, 0 );
+ 	sv_master[1] = Cvar_Get ("sv_master2", "", CVAR_ARCHIVE );
+ 	sv_master[2] = Cvar_Get ("sv_master3", "", CVAR_ARCHIVE );
+Index: src/server/sv_main.c
+===================================================================
+--- src/server/sv_main.c	(revision 966)
++++ src/server/sv_main.c	(working copy)
+@@ -33,6 +33,8 @@
+ cvar_t	*sv_rconPassword;		// password for remote server commands
+ cvar_t	*sv_privatePassword;	// password for the privateClient slots
+ cvar_t	*sv_allowDownload;
++cvar_t	*sv_wwwBaseURL;
++cvar_t	*sv_wwwDownload;
+ cvar_t	*sv_maxclients;
+ 
+ cvar_t	*sv_privateClients;		// number of clients reserved for password
+Index: src/qcommon/q_shared.c
+===================================================================
+--- src/qcommon/q_shared.c	(revision 966)
++++ src/qcommon/q_shared.c	(working copy)
+@@ -685,6 +685,13 @@
+ 	return ( 0 );
+ }
+ 
++int Q_isdigit( int c )
++{
++	if ((c >= '0' && c <= '9'))
++		return ( 1 );
++	return ( 0 );
++}
++
+ char* Q_strrchr( const char* string, int c )
+ {
+ 	char cc = c;
+Index: src/qcommon/q_shared.h
+===================================================================
+--- src/qcommon/q_shared.h	(revision 966)
++++ src/qcommon/q_shared.h	(working copy)
+@@ -637,11 +637,11 @@
+     float *s, float *t );
+ 
+ #ifndef MAX
+-#define MAX(x,y) (x)>(y)?(x):(y)
++#define MAX(x,y) ((x)>(y)?(x):(y))
+ #endif
+ 
+ #ifndef MIN
+-#define MIN(x,y) (x)<(y)?(x):(y)
++#define MIN(x,y) ((x)<(y)?(x):(y))
+ #endif
+ 
+ //=============================================
+@@ -719,6 +719,7 @@
+ int Q_islower( int c );
+ int Q_isupper( int c );
+ int Q_isalpha( int c );
++int Q_isdigit( int c );
+ 
+ // portable case insensitive compare
+ int		Q_stricmp (const char *s1, const char *s2);
+@@ -1317,5 +1318,8 @@
+ #define SAY_ALL		0
+ #define SAY_TEAM	1
+ #define SAY_TELL	2
++#define SAY_ACTION      3
++#define SAY_ACTION_T    4
++#define SAY_ADMINS    5
+ 
+ #endif	// __Q_SHARED_H
+Index: src/qcommon/qcommon.h
+===================================================================
+--- src/qcommon/qcommon.h	(revision 966)
++++ src/qcommon/qcommon.h	(working copy)
+@@ -224,7 +224,7 @@
+ ==============================================================
+ */
+ 
+-#define	PROTOCOL_VERSION	70
++#define	PROTOCOL_VERSION	69
+ 
+ // maintain a list of compatible protocols for demo playing
+ // NOTE: that stuff only works with two digits protocols
+Index: src/qcommon/msg.c
+===================================================================
+--- src/qcommon/msg.c	(revision 966)
++++ src/qcommon/msg.c	(working copy)
+@@ -827,7 +827,7 @@
+ { NETF(modelindex), 8 },
+ { NETF(otherEntityNum2), GENTITYNUM_BITS },
+ { NETF(loopSound), 8 },
+-{ NETF(generic1), 16 },
++{ NETF(generic1), 8 },
+ { NETF(origin2[2]), 0 },
+ { NETF(origin2[0]), 0 },
+ { NETF(origin2[1]), 0 },
+@@ -1143,7 +1143,7 @@
+ { PSF(damageYaw), 8 },
+ { PSF(damagePitch), 8 },
+ { PSF(damageCount), 8 },
+-{ PSF(generic1), 16 },
++{ PSF(generic1), 8 },
+ { PSF(pm_type), 8 },					
+ { PSF(delta_angles[0]), 16 },
+ { PSF(delta_angles[2]), 16 },
+Index: src/game/g_spawn.c
+===================================================================
+--- src/game/g_spawn.c	(revision 966)
++++ src/game/g_spawn.c	(working copy)
+@@ -662,20 +662,8 @@
+   g_entities[ ENTITYNUM_WORLD ].s.number = ENTITYNUM_WORLD;
+   g_entities[ ENTITYNUM_WORLD ].classname = "worldspawn";
+ 
+-  // see if we want a warmup time
+-  trap_SetConfigstring( CS_WARMUP, "" );
+   if( g_restarted.integer )
+-  {
+     trap_Cvar_Set( "g_restarted", "0" );
+-    level.warmupTime = 0;
+-  }
+-  else if( g_doWarmup.integer )
+-  {
+-    // Turn it on
+-    level.warmupTime = -1;
+-    trap_SetConfigstring( CS_WARMUP, va( "%i", level.warmupTime ) );
+-    G_LogPrintf( "Warmup:\n" );
+-  }
+ 
+ }
+ 
+Index: src/game/bg_misc.c
+===================================================================
+--- src/game/bg_misc.c	(revision 966)
++++ src/game/bg_misc.c	(working copy)
+@@ -68,7 +68,8 @@
+     ASPAWN_CREEPSIZE,      //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qfalse,                //qboolean  transparentTest;
+-    qfalse                 //qboolean  reactorTest;
++    qfalse,                //qboolean  reactorTest;
++    qfalse,                //qboolean  replacable;
+   },
+   {
+     BA_A_BARRICADE,        //int       buildNum;
+@@ -104,7 +105,8 @@
+     BARRICADE_CREEPSIZE,   //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qfalse,                //qboolean  transparentTest;
+-    qfalse                 //qboolean  reactorTest;
++    qfalse,                //qboolean  reactorTest;
++    qfalse,                //qboolean  replaceable;
+   },
+   {
+     BA_A_BOOSTER,          //int       buildNum;
+@@ -140,7 +142,8 @@
+     BOOSTER_CREEPSIZE,     //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qtrue,                 //qboolean  transparentTest;
+-    qfalse                 //qboolean  reactorTest;
++    qfalse,                //qboolean  reactorTest;
++    qtrue,                 //qboolean  replacable;
+   },
+   {
+     BA_A_ACIDTUBE,         //int       buildNum;
+@@ -176,7 +179,8 @@
+     ACIDTUBE_CREEPSIZE,    //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qfalse,                //qboolean  transparentTest;
+-    qfalse                 //qboolean  reactorTest;
++    qfalse,                //qboolean  reactorTest;
++    qfalse,                //qboolean  replacable;
+   },
+   {
+     BA_A_HIVE,             //int       buildNum;
+@@ -212,7 +216,8 @@
+     HIVE_CREEPSIZE,        //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qfalse,                //qboolean  transparentTest;
+-    qfalse                 //qboolean  reactorTest;
++    qfalse,                //qboolean  reactorTest;
++    qfalse,                //qboolean  replacable;
+   },
+   {
+     BA_A_TRAPPER,          //int       buildNum;
+@@ -248,7 +253,8 @@
+     TRAPPER_CREEPSIZE,     //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qtrue,                 //qboolean  transparentTest;
+-    qfalse                 //qboolean  reactorTest;
++    qfalse,                 //qboolean  reactorTest;
++    qfalse,                //qboolean  replacable;
+   },
+   {
+     BA_A_OVERMIND,         //int       buildNum;
+@@ -284,7 +290,8 @@
+     OVERMIND_CREEPSIZE,    //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qfalse,                //qboolean  transparentTest;
+-    qtrue                  //qboolean  reactorTest;
++    qtrue,                 //qboolean  reactorTest;
++    qtrue,                 //qboolean  replacable;
+   },
+   {
+     BA_A_HOVEL,            //int       buildNum;
+@@ -320,7 +327,8 @@
+     HOVEL_CREEPSIZE,       //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qfalse,                //qboolean  transparentTest;
+-    qtrue                  //qboolean  reactorTest;
++    qtrue,                 //qboolean  reactorTest;
++    qfalse,                //qboolean  replacable;
+   },
+   {
+     BA_H_SPAWN,            //int       buildNum;
+@@ -356,7 +364,8 @@
+     0,                     //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qtrue,                 //qboolean  transparentTest;
+-    qfalse                 //qboolean  reactorTest;
++    qfalse,                //qboolean  reactorTest;
++    qfalse,                //qboolean  replacable;
+   },
+   {
+     BA_H_MEDISTAT,         //int       buildNum;
+@@ -392,7 +401,8 @@
+     0,                     //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qtrue,                 //qboolean  transparentTest;
+-    qfalse                 //qboolean  reactorTest;
++    qfalse,                //qboolean  reactorTest;
++    qtrue,                 //qboolean  replacable;
+   },
+   {
+     BA_H_MGTURRET,         //int       buildNum;
+@@ -430,7 +440,8 @@
+     0,                     //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qtrue,                 //qboolean  transparentTest;
+-    qfalse                 //qboolean  reactorTest;
++    qfalse,                 //qboolean  reactorTest;
++    qfalse,                //qboolean  replacable;
+   },
+   {
+     BA_H_TESLAGEN,         //int       buildNum;
+@@ -466,7 +477,8 @@
+     0,                     //int       creepSize;
+     qtrue,                 //qboolean  dccTest;
+     qtrue,                 //qboolean  transparentTest;
+-    qfalse                 //qboolean  reactorTest;
++    qfalse,                //qboolean  reactorTest;
++    qfalse,                //qboolean  replacable;
+   },
+   {
+     BA_H_DCC,              //int       buildNum;
+@@ -502,7 +514,8 @@
+     0,                     //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qfalse,                //qboolean  transparentTest;
+-    qfalse                 //qboolean  reactorTest;
++    qfalse,                //qboolean  reactorTest;
++    qtrue,                 //qboolean  replacable;
+   },
+   {
+     BA_H_ARMOURY,          //int       buildNum;
+@@ -538,7 +551,8 @@
+     0,                     //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qfalse,                //qboolean  transparentTest;
+-    qfalse                 //qboolean  reactorTest;
++    qfalse,                //qboolean  reactorTest;
++    qtrue,                 //qboolean  replacable;
+   },
+   {
+     BA_H_REACTOR,          //int       buildNum;
+@@ -574,7 +588,8 @@
+     0,                     //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qfalse,                //qboolean  transparentTest;
+-    qtrue                  //qboolean  reactorTest;
++    qtrue,                 //qboolean  reactorTest;
++    qtrue,                 //qboolean  replacable;
+   },
+   {
+     BA_H_REPEATER,         //int       buildNum;
+@@ -610,7 +625,8 @@
+     0,                     //int       creepSize;
+     qfalse,                //qboolean  dccTest;
+     qfalse,                //qboolean  transparentTest;
+-    qfalse                 //qboolean  reactorTest;
++    qfalse,                //qboolean  reactorTest;
++    qtrue,                 //qboolean  replacable;
+   }
+ };
+ 
+@@ -1306,6 +1322,25 @@
+ 
+ /*
+ ==============
++BG_FindReplaceableTestForBuildable
++==============
++*/
++qboolean BG_FindReplaceableTestForBuildable( int bclass )
++{
++  int i;
++
++  for( i = 0; i < bg_numBuildables; i++ )
++  {
++    if( bg_buildableList[ i ].buildNum == bclass )
++    {
++      return bg_buildableList[ i ].replaceable;
++    }
++  }
++  return qfalse;
++}
++
++/*
++==============
+ BG_FindOverrideForBuildable
+ ==============
+ */
+@@ -1353,12 +1388,14 @@
+ 
+   // load the file
+   len = trap_FS_FOpenFile( filename, &f, FS_READ );
+-  if( len <= 0 )
++  if( len < 0 )
+     return qfalse;
+ 
+-  if( len >= sizeof( text ) - 1 )
++  if( len == 0 || len >= sizeof( text ) - 1 )
+   {
+-    Com_Printf( S_COLOR_RED "ERROR: Buildable file %s too long\n", filename );
++    trap_FS_FCloseFile( f );
++    Com_Printf( S_COLOR_RED "ERROR: Buildable file %s is %s\n", filename,
++      len == 0 ? "empty" : "too long" );
+     return qfalse;
+   }
+ 
+@@ -2812,12 +2849,14 @@
+ 
+   // load the file
+   len = trap_FS_FOpenFile( filename, &f, FS_READ );
+-  if( len <= 0 )
++  if( len < 0 )
+     return qfalse;
+ 
+-  if( len >= sizeof( text ) - 1 )
++  if( len == 0 || len >= sizeof( text ) - 1 )
+   {
+-    Com_Printf( S_COLOR_RED "ERROR: Class file %s too long\n", filename );
++    trap_FS_FCloseFile( f );
++    Com_Printf( S_COLOR_RED "ERROR: Class file %s is %s\n", filename,
++      len == 0 ? "empty" : "too long" );
+     return qfalse;
+   }
+ 
+@@ -5216,7 +5255,7 @@
+   //so buildings drop to floor
+   VectorMA( targetOrigin, -128, playerNormal, targetOrigin );
+ 
+-  (*trace)( tr, entityOrigin, mins, maxs, targetOrigin, ps->clientNum, MASK_DEADSOLID );
++  (*trace)( tr, entityOrigin, mins, maxs, targetOrigin, ps->clientNum, MASK_PLAYERSOLID );
+   VectorCopy( tr->endpos, entityOrigin );
+   VectorMA( entityOrigin, 0.1f, playerNormal, outOrigin );
+   vectoangles( forward, outAngles );
+@@ -5224,15 +5263,13 @@
+ 
+ /*
+ ===============
+-BG_GetValueOfHuman
++BG_GetValueOfEquipment
+ 
+-Returns the kills value of some human player
++Returns the equipment value of some human player's gear
+ ===============
+ */
+-int BG_GetValueOfHuman( playerState_t *ps )
+-{
+-  int     i, worth = 0;
+-  float   portion;
++  int BG_GetValueOfEquipment( playerState_t *ps ) {
++  int i, worth = 0;
+ 
+   for( i = UP_NONE + 1; i < UP_NUM_UPGRADES; i++ )
+   {
+@@ -5246,8 +5283,20 @@
+       worth += BG_FindPriceForWeapon( i );
+   }
+ 
+-  portion = worth / (float)HUMAN_MAXED;
++    return worth;
++  }
++/*
++===============
++BG_GetValueOfHuman
+ 
++Returns the kills value of some human player
++===============
++*/
++int BG_GetValueOfHuman( playerState_t *ps )
++{
++  float portion = BG_GetValueOfEquipment( ps ) / (float)HUMAN_MAXED;
++
++
+   if( portion < 0.01f )
+     portion = 0.01f;
+   else if( portion > 1.0f )
+@@ -5440,7 +5489,7 @@
+     while( *q == ' ' )
+       q++;
+ 
+-    buildables[ i ] = BG_FindClassNumForName( q );
++    buildables[ i ] = BG_FindBuildNumForName( q );
+ 
+     if( buildables[ i ] == BA_NONE )
+       Com_Printf( S_COLOR_YELLOW "WARNING: unknown buildable %s\n", q );
+Index: src/game/tremulous.h
+===================================================================
+--- src/game/tremulous.h	(revision 966)
++++ src/game/tremulous.h	(working copy)
+@@ -320,11 +320,11 @@
+ 
+ #define ALIENSENSE_RANGE            1000.0f
+ 
+-#define ALIEN_POISON_TIME           10000
+-#define ALIEN_POISON_DMG            30
++#define ALIEN_POISON_TIME           5000
++#define ALIEN_POISON_DMG            5
+ #define ALIEN_POISON_DIVIDER        (1.0f/1.32f) //about 1.0/(time`th root of damage)
+ 
+-#define ALIEN_SPAWN_REPEAT_TIME     10000
++#define ALIEN_SPAWN_REPEAT_TIME     1000 //10000
+ 
+ #define ALIEN_REGEN_DAMAGE_TIME     2000 //msec since damage that regen starts again
+ 
+@@ -452,9 +452,11 @@
+  */
+ 
+ #define LIGHTARMOUR_PRICE           70
++#define LIGHTARMOUR_POISON_PROTECTION 1
+ 
+ #define HELMET_PRICE                90
+ #define HELMET_RANGE                1000.0f
++#define HELMET_POISON_PROTECTION    2 
+ 
+ #define MEDKIT_PRICE                0
+ 
+@@ -468,6 +470,7 @@
+ #define JETPACK_DISABLE_CHANCE      0.3f
+ 
+ #define BSUIT_PRICE                 400
++#define BSUIT_POISON_PROTECTION     4
+ 
+ #define MGCLIP_PRICE                0
+ 
+@@ -475,7 +478,7 @@
+ 
+ #define GAS_PRICE                   0
+ 
+-#define MEDKIT_POISON_IMMUNITY_TIME 30000
++#define MEDKIT_POISON_IMMUNITY_TIME 0
+ #define MEDKIT_STARTUP_TIME         4000
+ #define MEDKIT_STARTUP_SPEED        5
+ 
+@@ -522,11 +525,11 @@
+ #define MGTURRET_ANGULARSPEED       8  //degrees/think ~= 200deg/sec
+ #define MGTURRET_ACCURACYTOLERANCE  MGTURRET_ANGULARSPEED / 1.5f //angular difference for turret to fire
+ #define MGTURRET_VERTICALCAP        30  // +/- maximum pitch
+-#define MGTURRET_REPEAT             100
++#define MGTURRET_REPEAT             500 //100
+ #define MGTURRET_K_SCALE            1.0f
+ #define MGTURRET_RANGE              300.0f
+ #define MGTURRET_SPREAD             200
+-#define MGTURRET_DMG                HDM(4)
++#define MGTURRET_DMG                HDM(20) //4
+ #define MGTURRET_DCC_ANGULARSPEED       10
+ #define MGTURRET_DCC_ACCURACYTOLERANCE  MGTURRET_DCC_ANGULARSPEED / 1.5f
+ #define MGTURRET_GRAB_ANGULARSPEED      3
+@@ -537,10 +540,10 @@
+ #define TESLAGEN_HEALTH             HBHM(220)
+ #define TESLAGEN_SPLASHDAMAGE       50
+ #define TESLAGEN_SPLASHRADIUS       100
+-#define TESLAGEN_REPEAT             250
++#define TESLAGEN_REPEAT             500 //250
+ #define TESLAGEN_K_SCALE            4.0f
+ #define TESLAGEN_RANGE              250
+-#define TESLAGEN_DMG                HDM(9)
++#define TESLAGEN_DMG                HDM(18) //9
+ 
+ #define DC_BP                       8
+ #define DC_BT                       10000
+@@ -585,7 +588,7 @@
+ #define STAMINA_SPRINT_TAKE         8
+ #define STAMINA_LARMOUR_TAKE        4
+ 
+-#define HUMAN_SPAWN_REPEAT_TIME     10000
++#define HUMAN_SPAWN_REPEAT_TIME     1000 //10000
+ 
+ /*
+  * Misc
+@@ -615,3 +618,8 @@
+ 
+ #define DAMAGE_FRACTION_FOR_KILL    0.5f //how much damage players (versus structures) need to
+                                          //do to increment the stage kill counters
++
++// g_suddenDeathMode settings
++#define SDMODE_BP                   0 
++#define SDMODE_NO_BUILD             1
++#define SDMODE_SELECTIVE            2
+Index: src/game/g_svcmds.c
+===================================================================
+--- src/game/g_svcmds.c	(revision 966)
++++ src/game/g_svcmds.c	(working copy)
+@@ -344,9 +344,9 @@
+   int       e;
+   gentity_t *check;
+ 
+-  check = g_entities + 1;
++  check = g_entities;
+ 
+-  for( e = 1; e < level.num_entities; e++, check++ )
++  for( e = 0; e < level.num_entities; e++, check++ )
+   {
+     if( !check->inuse )
+       continue;
+@@ -700,6 +700,7 @@
+     level.lastWin = PTE_NONE;
+     trap_SetConfigstring( CS_WINNER, "Evacuation" );
+     LogExit( "Evacuation." );
++    G_admin_maplog_result( "d" );
+     return qtrue;
+   }
+   
+@@ -722,14 +723,18 @@
+     }
+     else if( !Q_stricmp( cmd, "cp" ) )
+     {
+-      trap_SendServerCommand( -1, va( "cp \"%s\"", ConcatArgs( 1 ) ) );
+-      G_Printf( "cp: %s\n", ConcatArgs( 1 ) );
+-      return qtrue;
++	G_CP( NULL );
++        return qtrue;
+     }
+     else if( !Q_stricmp( cmd, "m" ) )
+     {
+       G_PrivateMessage( NULL );
+       return qtrue;
++    }    
++    else if( !Q_stricmp( cmd, "a" ) || !Q_stricmp( cmd, "say_admins" ))
++    {
++      G_Say( NULL, NULL, SAY_ADMINS, ConcatArgs( 1 )  );
++      return qtrue;
+     }
+ 
+     G_Printf( "unknown command: %s\n", cmd );

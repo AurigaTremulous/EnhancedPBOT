@@ -1,0 +1,7 @@
+There is the config directory for maps.
+The corresponding mapname.cfg will be called when the mapname are loaded.
+So you can define specific commands for each map.
+
+The default.cfg is the exception: it is executed always when a map is loaded.
+You can put there the commands what are common to all maps.
+
