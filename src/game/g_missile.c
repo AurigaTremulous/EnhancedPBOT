@@ -424,23 +424,10 @@ gentity_t *fire_blaster( gentity_t *self, vec3_t start, vec3_t dir )
   bolt->clipmask = MASK_SHOT;
   bolt->target_ent = NULL;
 
-    if (BG_InventoryContainsWeapon( WP_PULSE_RIFLE, self->client->ps.stats ))
-    {
-        bolt->damage = BLASTER_PULSE_DMG;
-        bolt->s.weapon = WP_PULSE_RIFLE;
-    }
-
-    int speed = BLASTER_SPEED;
-    if (BG_InventoryContainsWeapon( WP_MASS_DRIVER, self->client->ps.stats ))
-    {
-        bolt->damage = MDRIVER_SPLASHDMG;
-	speed = BLASTER_MDRIVER_SPEED;
-    }
-
   bolt->s.pos.trType = TR_LINEAR;
   bolt->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;   // move a bit on the very first frame
   VectorCopy( start, bolt->s.pos.trBase );
-  VectorScale( dir, speed, bolt->s.pos.trDelta );
+  VectorScale( dir, BLASTER_SPEED, bolt->s.pos.trDelta );
   SnapVector( bolt->s.pos.trDelta );      // save net bandwidth
 
   VectorCopy( start, bolt->r.currentOrigin );

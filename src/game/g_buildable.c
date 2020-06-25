@@ -605,8 +605,8 @@ void ASpawn_Blast( gentity_t *self )
   VectorCopy( self->s.origin2, dir );
 
   //do a bit of radius damage
-  G_SelectiveRadiusDamage( self->s.pos.trBase, self, self->splashDamage,
-    self->splashRadius, self, self->splashMethodOfDeath, PTE_ALIENS );
+  G_RadiusDamage( self->s.pos.trBase, self, self->splashDamage,
+    self->splashRadius, self, self->splashMethodOfDeath );
 
   //pretty events and item cleanup
   self->s.eFlags |= EF_NODRAW; //don't draw the model once it's destroyed

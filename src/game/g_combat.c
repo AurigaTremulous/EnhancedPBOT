@@ -135,7 +135,7 @@ char *modNames[ ] =
 player_die
 ==================
 */
-static void nullDieFunction( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int mod)
+static void newnullDieFunction( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int mod)
 {
 }
 extern void ASpawn_Blast( gentity_t *self );
@@ -169,7 +169,7 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
     blast->classname = "advgranger_rests";
     blast->nextthink = level.time+500;
     blast->think = ASpawn_Blast;  // ASpawn_Blast from g_buildable.c
-    blast->die = nullDieFunction; // nullDieFunction from g_buildable.c
+    blast->die = newnullDieFunction; // nullDieFunction from g_buildable.c //Auriga: copying directly from buildable.c causes compilation errors ;_;
     VectorCopy(self->s.pos.trBase, blast->s.pos.trBase);
     VectorCopy(self->s.pos.trBase, blast->r.currentOrigin);
     blast->s.eFlags &= ~EF_FIRING;
@@ -453,7 +453,6 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
       }
       
       //nice simple happy bouncy human land
-      float classValue = BG_FindValueOfClass( self->client->ps.stats[ STAT_PCLASS ] );
 
       for( i = 0; i < MAX_CLIENTS; i++ )
       {
@@ -478,7 +477,7 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 
         //add credit
         G_AddCreditToClient( player->client,
-            (int)( classValue * percentDamage ), qtrue );
+            (int)((float)( BG_FindValueOfClass( self->client->ps.stats[ STAT_PCLASS ] ) * percentDamage )), qtrue );
       }
     }
     else if( self->client->ps.stats[ STAT_PTEAM ] == PTE_HUMANS )

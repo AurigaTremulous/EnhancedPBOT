@@ -78,6 +78,7 @@ void G_BotAdd( char *name, int team, int skill, int ignore ) {
 	
 	// Carga la personalidad del bot
 	char filename[ MAX_QPATH ];
+	char *token, *p;
 	int len;
 	fileHandle_t fileHandle;
 	static char	buffer [ 2000 ];
@@ -91,7 +92,7 @@ void G_BotAdd( char *name, int team, int skill, int ignore ) {
 		trap_FS_Read( buffer, len, fileHandle );
 		buffer[len] = 0;
 		trap_FS_FCloseFile( fileHandle );
-		char *token, *p; p = buffer;
+		p = buffer;
 		
 		while (1)
 		{
@@ -1181,7 +1182,7 @@ void bot_touch( gentity_t *ent, gentity_t *other, trace_t *trace)
 	// Se corre hacia atras
 	ent->client->pers.cmd.forwardmove = botForwardIfSecure( ent, -100 );
     }
-};
+}
 
 // Borra todo el camino marcado del bot y establece que 
 // se debe marcar un nuevo camino si i_apaths > 0
@@ -1686,6 +1687,9 @@ int botFindClosestFriend( gentity_t *self );
 void G_BotThink( gentity_t *self )
 {
 	int distance = 0;
+	int tDistance = 0; // Para disparar no de tan cerca
+	int maxdist = 350;
+	int uhyb = 0;
 	int clicksToStopChase = 40; //30 = 5 seconds
 	//int tooCloseDistance = 100; // about 1/3 of turret range
 	int tooCloseDistanceFriend = 90;
@@ -2081,12 +2085,10 @@ void G_BotThink( gentity_t *self )
 							    }
 							}
 						    }
-						    int maxdist = 350;
+						    
 						    if (BG_InventoryContainsUpgrade( UP_BATTLESUIT, self->client->ps.stats ))
-						    {
 							maxdist = 450;
-						    }
-
+						    
 						    if ( distance>maxdist )
 						    {
 							self->botFriend = NULL;
@@ -2198,7 +2200,6 @@ void G_BotThink( gentity_t *self )
 				    }
 
 				    //self->client->pers.cmd.upmove = -1;
-				    int uhyb = 0;
 				    self->client->pers.cmd.forwardmove = botForwardIfSecure( self, forwardMove );
 				    if (g_ambush_dodge_random.integer <= 0)
 				    	g_ambush_dodge_random.integer = 1;
@@ -2444,8 +2445,7 @@ void G_BotThink( gentity_t *self )
 				{
 				    self->state = FINDNEWPATH;
 				}
-				// enemy!
-				int tDistance; // Para disparar no de tan cerca
+				// enemy!				
 				//distance = botGetDistanceBetweenPlayer(self, self->botEnemy);
 
 				botAimAtTarget(self, self->botEnemy);
@@ -2521,7 +2521,7 @@ void G_BotThink( gentity_t *self )
 				    }
 
 				    //self->client->pers.cmd.upmove = -1;
-				    int uhyb = 0;
+				    uhyb = 0;
 				    self->client->pers.cmd.forwardmove = botForwardIfSecure( self, forwardMove );
 				    if (g_ambush_dodge_random.integer <= 0)
 				    	g_ambush_dodge_random.integer = 1;
@@ -2571,6 +2571,12 @@ int Bot_GetAmbushAlienClass( void )
 
 extern void ambush_next_stage( void );
 void G_BotSpectatorThink( gentity_t *self ) {
+	gentity_t *bot;
+	int i = 0;
+	int NumHumansPlayers = 0; 
+	int NumHumansBots = 0;
+	int numclients = 0;
+
   //self->client->ps.pm_type = PM_FREEZE;
   // Hay una mierda de que mato companyeros a lo loco
   // aunque ya estan muertos!!! como hago???
@@ -2594,12 +2600,8 @@ void G_BotSpectatorThink( gentity_t *self ) {
   
   // Espera un momentito antes de elegir
   if ( self->client->bottimeRespawn < 20 )
-  {
-    return;
-  }
+	return;
 
-	int i, NumHumansPlayers = 0, NumHumansBots = 0, numclients = 0;
-        gentity_t *bot;
         for( i = 0; i < level.maxclients; i++ )
         {
 	    bot = &g_entities[ i ];
@@ -2648,16 +2650,14 @@ void G_BotSpectatorThink( gentity_t *self ) {
   self->takedamage = qtrue;
     
   //if( self->client->sess.sessionTeam == TEAM_SPECTATOR ) {
-	int teamnum = self->client->pers.teamSelection;
-	int clientNum = self->client->ps.clientNum;
 
-    if( teamnum == PTE_HUMANS ) {
+    if( self->client->pers.classSelection == PTE_HUMANS ) {
     	self->client->pers.classSelection = PCL_HUMAN;
     	self->client->ps.stats[ STAT_PCLASS ] = PCL_HUMAN;
     	self->client->pers.humanItemSelection = WP_MACHINEGUN;
-    	G_PushSpawnQueue( &level.humanSpawnQueue, clientNum );
+    	G_PushSpawnQueue( &level.humanSpawnQueue, self->client->ps.clientNum );
     	
-	} else if( teamnum == PTE_ALIENS) {
+	} else if( self->client->pers.classSelection == PTE_ALIENS) {
 	  //ROTAX
 	  //if (g_ambush.integer == 1)
 	  //{   
@@ -2687,7 +2687,7 @@ void G_BotSpectatorThink( gentity_t *self ) {
 		    {
 			self->client->ps.stats[ STAT_PCLASS ] = Bot_GetAmbushAlienClass();
 			self->client->pers.classSelection = self->client->ps.stats[ STAT_PCLASS ];
-      			G_PushSpawnQueue( &level.alienSpawnQueue, clientNum );
+      			G_PushSpawnQueue( &level.alienSpawnQueue, self->client->ps.clientNum );
   		    }
 		    else // Random
 		    {	
@@ -2701,7 +2701,7 @@ void G_BotSpectatorThink( gentity_t *self ) {
   			    self->client->ps.stats[ STAT_PCLASS ] = PCL_ALIEN_BUILDER0_UPG;
 			}
 			self->client->pers.classSelection = self->client->ps.stats[ STAT_PCLASS ];
-			G_PushSpawnQueue( &level.alienSpawnQueue, clientNum );
+			G_PushSpawnQueue( &level.alienSpawnQueue, self->client->ps.clientNum );
 		    }
 		}
 	    }

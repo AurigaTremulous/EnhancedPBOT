@@ -2066,6 +2066,7 @@ qboolean DrawNodes( gentity_t *ent, qboolean clear )
 {
     int i, i2;
     qboolean found = qfalse;
+    qboolean delpath = qfalse;
     gentity_t *target;
 	// Primero borramos todas las entidades mostrando nodos (classname=="nodedraw")	
 	// Si se encontro aunque sea una se termina la accion (quiere decir que 
@@ -2085,7 +2086,7 @@ qboolean DrawNodes( gentity_t *ent, qboolean clear )
 	    }
 	    if (found == qtrue) { return qtrue; }
 	}
-	    qboolean delpath = qfalse;
+	    delpath = qfalse;
     	    for ( i = 0; i < level.numPaths; i++ )
 	    {
 		for (i2 = 0; i2 < 5; i2++)

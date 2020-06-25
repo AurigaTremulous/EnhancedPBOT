@@ -2389,13 +2389,11 @@ static void PM_CheckDuck (void)
 }
 //===================================================================
 
-
 /*
 ===============
 PM_Footsteps
 ===============
 */
-extern void FootStepAttack( pmove_t *pm );
 static void PM_Footsteps( void )
 {
   float     bobmove;
@@ -2583,12 +2581,6 @@ static void PM_Footsteps( void )
       // on ground will only play sounds if running
       if( footstep && !pm->noFootsteps )
         PM_AddEvent( PM_FootstepForSurface( ) );
-      // Detectar si el humano tiene el bsuit y producir un radio de danyo
-      // en sus pasos pero la direccion del danyo varia de acuerdo a la 
-      // direccion de caminar 
-      //if ( pm->ps->stats[ STAT_PCLASS ] == PCL_HUMAN_BSUIT2 )
-      if ( BG_InventoryContainsUpgrade( UP_BATTLESUIT, pm->ps->stats ) )
-        FootStepAttack( pm );
     }
     else if( pm->waterlevel == 1 )
     {

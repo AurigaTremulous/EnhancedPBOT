@@ -341,9 +341,6 @@ void target_rumble_think( gentity_t *self )
   if( self->last_move_time < level.time )
     self->last_move_time = level.time + 0.5;
 
-  float crand1 = crandom( ) * 150;
-  float crand2 = crandom( ) * 150;
-
   for( i = 0, ent = g_entities + i; i < level.num_entities; i++, ent++ )
   {
     if( !ent->inuse )
@@ -356,8 +353,8 @@ void target_rumble_think( gentity_t *self )
       continue;
 
     ent->client->ps.groundEntityNum = ENTITYNUM_NONE;
-    ent->client->ps.velocity[ 0 ] += crand1;
-    ent->client->ps.velocity[ 1 ] += crand2;
+    ent->client->ps.velocity[ 0 ] += crandom( ) * 150;
+    ent->client->ps.velocity[ 1 ] += crandom( ) * 150;
     ent->client->ps.velocity[ 2 ] = self->speed;
   }
 

@@ -4421,6 +4421,7 @@ extern qboolean DrawNodes( gentity_t *ent, qboolean clear );
 extern void G_ExplodeMissile( gentity_t *ent );
 void Cmd_Node_f( gentity_t *ent )
 {
+  gentity_t *target;
 	char cmd[ MAX_TOKEN_CHARS ] = "";
 	char timeout[ MAX_TOKEN_CHARS ] = "";
 	char action[ MAX_TOKEN_CHARS ] = "";
@@ -4440,6 +4441,7 @@ void Cmd_Node_f( gentity_t *ent )
 	qboolean linked = qfalse;
 	qboolean linked2 = qfalse;
 	qboolean deleted = qfalse;
+  qboolean found = qfalse;
 	if(g_pathediting.integer <= 0)
 	{
 		trap_SendServerCommand( ent-g_entities,
@@ -4606,8 +4608,7 @@ void Cmd_Node_f( gentity_t *ent )
 				level.numPaths++;
 			}
 		    // Update drawing
-		    qboolean found = qfalse;
-		    gentity_t *target;
+		   found = qfalse;
 		    for ( i = 0; i < MAX_GENTITIES; i++ )
 		    {
 			target = &g_entities[ i ];
@@ -4787,8 +4788,7 @@ void Cmd_Node_f( gentity_t *ent )
 			}
 			else{ent->movepathid = -1;}
 		    // Update drawing
-		    qboolean found = qfalse;
-		    gentity_t *target;
+		    found = qfalse;
 		    for ( i = 0; i < MAX_GENTITIES; i++ )
 		    {
 			target = &g_entities[ i ];
@@ -4833,8 +4833,7 @@ void Cmd_Node_f( gentity_t *ent )
 			trap_SendServerCommand( ent-g_entities,
 				va("print \"Deleted Node #%d. It remains disabled until written over.  Links to other paths removed.\n\"", nearbynodeid[0]));
 		    // Update drawing
-		    qboolean found = qfalse;
-		    gentity_t *target;
+		    found = qfalse;
 		    for ( i = 0; i < MAX_GENTITIES; i++ )
 		    {
 			target = &g_entities[ i ];

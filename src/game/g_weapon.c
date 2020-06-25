@@ -220,59 +220,6 @@ void meleeAttack( gentity_t *ent, float range, float width, int damage, meansOfD
 
 }
 
-/*
-==============
-FootStepAttack
-==============
-It must be called from PM_Footsteps only.
-*/
-extern void FootStepAttack( pmove_t *pm )
-{
-        trace_t   tr;
-        vec3_t    end;
-        //vec3_t    muzzle, forward, right, up;
-        gentity_t *tent;
-        gentity_t *traceEnt;
-        vec3_t    mins, maxs;
-        vec3_t    angleToTarget;
-
-        VectorSet( mins, -BSUIT_FOOTSTEP_W, -BSUIT_FOOTSTEP_W, -BSUIT_FOOTSTEP_W );
-        VectorSet( maxs, BSUIT_FOOTSTEP_W, BSUIT_FOOTSTEP_W, BSUIT_FOOTSTEP_W );
-
-        // set aiming directions
-        vectoangles( pm->ps->velocity, angleToTarget);
-        AngleVectors( angleToTarget, forward, right, up );
-        VectorCopy( pm->ps->origin, muzzle );
-        muzzle[2] -= pm->ps->viewheight;
-        VectorMA(muzzle, 1, forward, muzzle);
-        VectorMA(muzzle, 1, right, muzzle);
-        SnapVector(muzzle);
-        VectorMA(muzzle, BSUIT_FOOTSTEP_W, forward, end);
-
-        G_UnlaggedOn( muzzle, BSUIT_FOOTSTEP_W );
-        pm->trace( &tr, muzzle, mins, maxs, end, pm->ps->clientNum, MASK_SHOT );
-        G_UnlaggedOff( );
-
-        if( tr.surfaceFlags & SURF_NOIMPACT )
-            return;
-
-        traceEnt = &g_entities[ tr.entityNum ];
-
-        // send blood impact
-        if( traceEnt->takedamage && traceEnt->client )
-        {
-            tent = G_TempEntity( tr.endpos, EV_MISSILE_HIT );
-            tent->s.otherEntityNum = traceEnt->s.number;
-            tent->s.eventParm = DirToByte( tr.plane.normal );
-            tent->s.weapon = WP_NONE;
-            tent->s.generic1 = 0; //weaponMode
-        //}
-
-        //if( traceEnt->takedamage )
-            G_Damage( traceEnt, NULL, NULL, forward, tr.endpos, BSUIT_FOOTSTEP_DMG, 0, MOD_CRUSH );
-	}
-}
-
 
 /*
 ======================================================================
